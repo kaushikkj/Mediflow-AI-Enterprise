@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "mediflow-app.configMapName" . }}
+  labels:
+    {{- include "mediflow-app.labels" . | nindent 4 }}
+data:
+  DATABASE_URL: {{ required "config.databaseUrl is required" .Values.config.databaseUrl | quote }}
+  REDIS_URL: {{ required "config.redisUrl is required" .Values.config.redisUrl | quote }}
+  JWT_EXPIRE_MINUTES: {{ .Values.config.jwtExpireMinutes | quote }}
+  JWT_ALGORITHM: {{ .Values.config.jwtAlgorithm | quote }}
+  JWT_ISSUER: {{ .Values.config.jwtIssuer | quote }}
+  JWT_AUDIENCE: {{ .Values.config.jwtAudience | quote }}
+  MINIO_ENDPOINT: {{ .Values.config.minioEndpoint | quote }}
+  MINIO_BUCKET: {{ .Values.config.minioBucket | quote }}
+  OTEL_SERVICE_NAME: {{ .Values.config.otelServiceName | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.config.otelExporterOtlpEndpoint | quote }}
+  OTEL_EXPORTER_OTLP_PROTOCOL: {{ .Values.config.otelExporterOtlpProtocol | quote }}
+  OTEL_EXPORTER_OTLP_INSECURE: {{ .Values.config.otelExporterOtlpInsecure | quote }}
+  OTEL_TRACES_EXPORTER: {{ .Values.config.otelTracesExporter | quote }}
+  OTEL_RESOURCE_ATTRIBUTES: {{ printf "deployment.environment=%s,service.version=%s" .Values.global.environment .Chart.AppVersion | quote }}

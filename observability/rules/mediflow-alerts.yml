@@ -1,0 +1,117 @@
+groups:
+  - name: mediflow-service-health
+    rules:
+      - alert: MediFlowBackendDown
+        expr: up{job="mediflow-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: backend
+        annotations:
+          summary: MediFlow backend is down
+          description: Prometheus has been unable to scrape the backend for more than 1 minute.
+
+      - alert: PostgreSQLExporterDown
+        expr: up{job="postgres-exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: postgresql
+        annotations:
+          summary: PostgreSQL monitoring is down
+          description: Prometheus has been unable to scrape PostgreSQL exporter for more than 1 minute.
+
+      - alert: RedisExporterDown
+        expr: up{job="redis-exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: redis
+        annotations:
+          summary: Redis monitoring is down
+          description: Prometheus has been unable to scrape Redis exporter for more than 1 minute.
+
+  - name: mediflow-api-performance
+    rules:
+      - alert: MediFlowHighServerErrorRate
+        expr: |
+          (
+            sum(rate(mediflow_http_requests_total{status=~"5.."}[5m]))
+            /
+            clamp_min(
+              sum(rate(mediflow_http_requests_total[5m])),
+              0.000001
+            )
+          ) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          service: backend
+        annotations:
+          summary: MediFlow API 5xx error rate is high
+          description: More than 5 percent of API requests have returned a 5xx response for 2 minutes.
+
+      - alert: MediFlowHighP95Latency
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (
+              rate(mediflow_http_request_seconds_bucket[5m])
+            )
+          ) > 1
+        for: 5m
+        labels:
+          severity: warning
+          service: backend
+        annotations:
+          summary: MediFlow API latency is high
+          description: The overall API P95 response time has exceeded 1 second for 5 minutes.
+
+  - name: mediflow-database-health
+    rules:
+      - alert: PostgreSQLDeadlockDetected
+        expr: |
+          increase(
+            pg_stat_database_deadlocks{
+              job="postgres-exporter",
+              datname="mediflow"
+            }[5m]
+          ) > 0
+        labels:
+          severity: warning
+          service: postgresql
+        annotations:
+          summary: PostgreSQL deadlock detected
+          description: At least one PostgreSQL deadlock occurred during the last 5 minutes.
+
+      - alert: PostgreSQLTooManyConnections
+        expr: |
+          sum(
+            pg_stat_database_numbackends{
+              job="postgres-exporter",
+              datname="mediflow"
+            }
+          ) > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: postgresql
+        annotations:
+          summary: PostgreSQL connection count is high
+          description: The MediFlow database has used more than 80 active connections for 5 minutes.
+
+      - alert: RedisMemoryHigh
+        expr: |
+          redis_memory_used_bytes{job="redis-exporter"}
+          /
+          clamp_min(
+            redis_memory_max_bytes{job="redis-exporter"},
+            1
+          ) > 0.80
+        for: 5m
+        labels:
+          severity: warning
+          service: redis
+        annotations:
+          summary: Redis memory usage is high
+          description: Redis has used more than 80 percent of its configured maximum memory for 5 minutes.
