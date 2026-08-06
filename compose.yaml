@@ -1,0 +1,256 @@
+name: mediflow-one-v2
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-mediflow}
+      POSTGRES_USER: ${POSTGRES_USER:-mediflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mediflow}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-mediflow} -d ${POSTGRES_DB:-mediflow}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  postgres-exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.20.1
+    profiles:
+      - observability
+    environment:
+      DATA_SOURCE_NAME: postgresql://${POSTGRES_USER:-mediflow}:${POSTGRES_PASSWORD:-mediflow}@postgres:5432/${POSTGRES_DB:-mediflow}?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "9187:9187"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test:
+        - CMD
+        - redis-cli
+        - ping
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.74.0
+    profiles:
+      - observability
+    environment:
+      REDIS_ADDR: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "9121:9121"
+
+  minio:
+    image: quay.io/minio/minio:latest
+    command:
+      - server
+      - /data
+      - --console-address
+      - ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-mediflow}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-mediflow123}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://mediflow:mediflow@postgres:5432/mediflow}
+
+      JWT_SECRET: ${JWT_SECRET:-change-this-local-secret}
+      JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-480}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_ISSUER: ${JWT_ISSUER:-mediflow-api}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-mediflow-web}
+
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio:9000}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-mediflow}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-mediflow123}
+      MINIO_BUCKET: ${MINIO_BUCKET:-medical-documents}
+
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+
+      OTEL_SERVICE_NAME: mediflow-backend
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4317
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_EXPORTER_OTLP_INSECURE: "true"
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=local,service.version=2.0.0
+    ports:
+      - "8000:8000"
+    volumes:
+      - mediflow_logs:/var/log/mediflow
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    profiles:
+      - observability
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+    volumes:
+      - ./observability/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    ports:
+      - "9093:9093"
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    profiles:
+      - observability
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/rules:/etc/prometheus/rules:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    depends_on:
+      - alertmanager
+
+  loki:
+    image: grafana/loki:3.7.0
+    profiles:
+      - observability
+    command:
+      - "-config.file=/etc/loki/loki-config.yml"
+    volumes:
+      - ./observability/loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+      - loki_data:/loki
+    ports:
+      - "3100:3100"
+
+  tempo:
+    image: grafana/tempo:2.8.2
+    profiles:
+      - observability
+    command:
+      - "-config.file=/etc/tempo/tempo.yml"
+    volumes:
+      - ./observability/tempo/tempo.yml:/etc/tempo/tempo.yml:ro
+      - tempo_data:/var/tempo
+    ports:
+      - "3200:3200"
+
+  alloy:
+    image: grafana/alloy:v1.18.0
+    profiles:
+      - observability
+    command:
+      - run
+      - "--server.http.listen-addr=0.0.0.0:12345"
+      - "--storage.path=/var/lib/alloy/data"
+      - /etc/alloy/config.alloy
+    volumes:
+      - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - mediflow_logs:/var/log/mediflow:ro
+      - alloy_data:/var/lib/alloy/data
+    ports:
+      - "12345:12345"
+      - "4317:4317"
+      - "4318:4318"
+    depends_on:
+      backend:
+        condition: service_healthy
+      loki:
+        condition: service_started
+      tempo:
+        condition: service_started
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    profiles:
+      - observability
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin123
+
+      # Allows Grafana to render inside the MediFlow iframe.
+      GF_SECURITY_ALLOW_EMBEDDING: "true"
+
+      # Allows the embedded dashboard to load without a second login.
+      # Keep this only for local development.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+
+      # Keep the normal Grafana login screen available on port 3001.
+      GF_AUTH_DISABLE_LOGIN_FORM: "false"
+
+      # Cookie settings suitable for local HTTP iframe embedding.
+      GF_SECURITY_COOKIE_SECURE: "false"
+      GF_SECURITY_COOKIE_SAMESITE: lax
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
+
+volumes:
+  postgres_data:
+  minio_data:
+  prometheus_data:
+  grafana_data:
+  alertmanager_data:
+  mediflow_logs:
+  loki_data:
+  alloy_data:
+  tempo_data:
