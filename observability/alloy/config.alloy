@@ -1,0 +1,105 @@
+// -----------------------------------------------------------------------------
+// MediFlow logs: shared JSON log file -> Alloy -> Loki
+// -----------------------------------------------------------------------------
+
+local.file_match "mediflow_backend" {
+  path_targets = [
+    {
+      "__path__" = "/var/log/mediflow/backend.json.log",
+      "job"      = "mediflow-backend",
+      "service"  = "backend",
+    },
+  ]
+}
+
+loki.source.file "mediflow_backend" {
+  targets    = local.file_match.mediflow_backend.targets
+  forward_to = [loki.process.mediflow_backend.receiver]
+}
+
+loki.process "mediflow_backend" {
+  stage.json {
+    expressions = {
+      timestamp   = "timestamp",
+      level       = "level",
+      logger      = "logger",
+      message     = "message",
+      event       = "event",
+      path        = "path",
+      method      = "method",
+      status_code = "status_code",
+      request_id  = "request_id",
+      duration_ms = "duration_ms",
+      user_id     = "user_id",
+      role        = "role",
+      entity_type = "entity_type",
+      entity_id   = "entity_id",
+    }
+  }
+
+  // Keep only low-cardinality values as Loki labels.
+  // Request IDs, user IDs, paths, and entity IDs remain JSON fields.
+  stage.labels {
+    values = {
+      level  = "",
+      event  = "",
+      method = "",
+      role   = "",
+    }
+  }
+
+  stage.timestamp {
+    source = "timestamp"
+    format = "RFC3339"
+  }
+
+  forward_to = [loki.write.mediflow.receiver]
+}
+
+loki.write "mediflow" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
+
+
+// -----------------------------------------------------------------------------
+// MediFlow traces: FastAPI OTLP -> Alloy -> Tempo
+// -----------------------------------------------------------------------------
+
+otelcol.receiver.otlp "mediflow" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+
+  output {
+    traces = [
+      otelcol.processor.batch.mediflow.input,
+    ]
+  }
+}
+
+otelcol.processor.batch "mediflow" {
+  timeout         = "5s"
+  send_batch_size = 512
+
+  output {
+    traces = [
+      otelcol.exporter.otlp.tempo.input,
+    ]
+  }
+}
+
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "tempo:4317"
+
+    tls {
+      insecure = true
+    }
+  }
+}
