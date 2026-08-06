@@ -1,0 +1,40 @@
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
+
+# Database
+SQLAlchemy==2.0.43
+psycopg[binary]==3.2.9
+
+# Configuration
+pydantic-settings==2.10.1
+
+# Authentication
+python-jose[cryptography]==3.5.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.2.1
+email-validator==2.2.0
+python-multipart==0.0.20
+
+# Storage
+boto3==1.40.21
+
+# Cache
+redis==6.4.0
+
+# Monitoring
+prometheus-client==0.22.1
+
+# OpenTelemetry (Tracing)
+opentelemetry-api==1.36.0
+opentelemetry-sdk==1.36.0
+opentelemetry-exporter-otlp-proto-grpc==1.36.0
+opentelemetry-instrumentation==0.57b0
+opentelemetry-instrumentation-fastapi==0.57b0
+opentelemetry-instrumentation-asgi==0.57b0
+opentelemetry-instrumentation-sqlalchemy==0.57b0
+opentelemetry-instrumentation-redis==0.57b0
+
+# Testing
+pytest==8.4.1
+httpx==0.28.1
+alembic==1.16.5
