@@ -25,7 +25,11 @@ spec:
         checksum/secret: {{ include (print $.Template.BasePath "/common/secret.yaml") . | sha256sum }}
         {{- end }}
     spec:
-      serviceAccountName: {{ .Values.serviceAccount.name }}
+      {{- with .Values.serviceAccount }}
+      {{- if .name }}
+      serviceAccountName: {{ .name }}
+      {{- end }}
+      {{- end }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
