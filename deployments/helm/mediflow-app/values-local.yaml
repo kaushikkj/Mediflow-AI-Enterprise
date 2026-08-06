@@ -1,0 +1,20 @@
+global:
+  environment: local
+
+ingress:
+  enabled: true
+  className: nginx
+  frontendHost: mediflow.local
+  apiHost: api.mediflow.local
+
+backend:
+  image:
+    repository: mediflow-one-v2-backend
+    tag: dev
+    pullPolicy: IfNotPresent
+
+frontend:
+  image:
+    repository: mediflow-one-v2-frontend
+    tag: dev
+    pullPolicy: IfNotPresent
