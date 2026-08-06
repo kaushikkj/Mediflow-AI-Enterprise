@@ -1,0 +1,14 @@
+name: Actions Trigger Test
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify GitHub Actions
+        run: echo "GitHub Actions is working"
