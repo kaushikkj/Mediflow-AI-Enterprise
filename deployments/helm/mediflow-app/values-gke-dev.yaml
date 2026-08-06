@@ -1,0 +1,47 @@
+global:
+  environment: gke-dev
+
+# Override these repositories and tags at deployment time.
+backend:
+  image:
+    repository: asia-south1-docker.pkg.dev/mediflow-ai-enterprise/mediflow/backend
+    tag: v1
+    pullPolicy: IfNotPresent
+  autoscaling:
+    enabled: false
+
+frontend:
+  image:
+    repository: asia-south1-docker.pkg.dev/mediflow-ai-enterprise/mediflow/frontend
+    tag: v3
+    pullPolicy: IfNotPresent
+  autoscaling:
+    enabled: false
+
+ingress:
+  enabled: false
+  className: gce
+  frontendHost: dev.mediflow.example.com
+  apiHost: api-dev.mediflow.example.com
+
+# Replace these with Cloud SQL, Memorystore, MinIO/GCS-compatible endpoints,
+# or services running in the same Kubernetes namespace.
+config:
+  databaseUrl: postgresql+psycopg://mediflow:mediflow@postgres:5432/mediflow
+  redisUrl: redis://redis:6379/0
+  minioEndpoint: minio:9000
+
+# Recommended for GKE: create the Secret outside Helm or sync it from
+# Google Secret Manager, then set its name here.
+secret:
+  existingSecret: mediflow-app-secrets
+  jwtSecret: ""
+  minioAccessKey: ""
+  minioSecretKey: ""
+
+serviceAccount:
+  create: false
+  name: mediflow-backend
+  annotations:
+    iam.gke.io/gcp-service-account: mediflow-app-dev@mediflow-ai-enterprise.iam.gserviceaccount.com
+
