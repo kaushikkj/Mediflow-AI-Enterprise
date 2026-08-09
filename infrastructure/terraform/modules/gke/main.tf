@@ -21,4 +21,8 @@ resource "google_container_cluster" "this" {
   lifecycle {
     prevent_destroy = true
   }
+
+  secret_manager_config {
+  enabled = true
+  }
 }
