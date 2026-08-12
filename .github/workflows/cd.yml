@@ -71,7 +71,9 @@ jobs:
         shell: bash
         run: |
           echo "===== ACTIVE ACCOUNT ====="
-          gcloud auth list --filter=status:ACTIVE --format="value(account)"
+          gcloud auth list \
+            --filter=status:ACTIVE \
+            --format="value(account)"
 
           echo
           echo "===== PROJECT ====="
@@ -86,6 +88,24 @@ jobs:
           echo "===== BUCKET LIST TEST ====="
           gcloud storage ls \
             gs://mediflow-ai-enterprise_cloudbuild
+
+          echo
+          echo "===== BUCKET WRITE TEST ====="
+          echo "github-actions-test" > /tmp/wif-test.txt
+
+          gcloud storage cp \
+            /tmp/wif-test.txt \
+            gs://mediflow-ai-enterprise_cloudbuild/github-actions-wif-test.txt
+
+          echo
+          echo "===== VERIFY UPLOAD ====="
+          gcloud storage ls \
+            gs://mediflow-ai-enterprise_cloudbuild/github-actions-wif-test.txt
+
+          echo
+          echo "===== CLEANUP ====="
+          gcloud storage rm \
+            gs://mediflow-ai-enterprise_cloudbuild/github-actions-wif-test.txt
 
       - name: Build backend image
         shell: bash
