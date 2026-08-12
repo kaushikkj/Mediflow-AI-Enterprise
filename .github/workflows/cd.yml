@@ -67,61 +67,35 @@ jobs:
       - name: Set up Google Cloud SDK
         uses: google-github-actions/setup-gcloud@v3
 
-      - name: Debug GCP access
+      - name: Configure Docker for Artifact Registry
         shell: bash
         run: |
-          echo "===== ACTIVE ACCOUNT ====="
-          gcloud auth list \
-            --filter=status:ACTIVE \
-            --format="value(account)"
-
-          echo
-          echo "===== PROJECT ====="
-          gcloud config get-value project
-
-          echo
-          echo "===== BUCKET DESCRIBE ====="
-          gcloud storage buckets describe \
-            gs://mediflow-ai-enterprise_cloudbuild
-
-          echo
-          echo "===== BUCKET LIST TEST ====="
-          gcloud storage ls \
-            gs://mediflow-ai-enterprise_cloudbuild
-
-          echo
-          echo "===== BUCKET WRITE TEST ====="
-          echo "github-actions-test" > /tmp/wif-test.txt
-
-          gcloud storage cp \
-            /tmp/wif-test.txt \
-            gs://mediflow-ai-enterprise_cloudbuild/github-actions-wif-test.txt
-
-          echo
-          echo "===== VERIFY UPLOAD ====="
-          gcloud storage ls \
-            gs://mediflow-ai-enterprise_cloudbuild/github-actions-wif-test.txt
-
-          echo
-          echo "===== CLEANUP ====="
-          gcloud storage rm \
-            gs://mediflow-ai-enterprise_cloudbuild/github-actions-wif-test.txt
+          gcloud auth configure-docker asia-south1-docker.pkg.dev --quiet
 
       - name: Build backend image
         shell: bash
         run: |
-          gcloud builds submit ./backend \
-            --project="${PROJECT_ID}" \
-            --config=./backend/cloudbuild.yaml \
-            --substitutions=_IMAGE_TAG="${IMAGE_TAG}"
+          docker build \
+            -t "${BACKEND_IMAGE}:${IMAGE_TAG}" \
+            ./backend
+
+      - name: Push backend image
+        shell: bash
+        run: |
+          docker push "${BACKEND_IMAGE}:${IMAGE_TAG}"
 
       - name: Build frontend image
         shell: bash
         run: |
-          gcloud builds submit ./frontend \
-            --project="${PROJECT_ID}" \
-            --config=./frontend/cloudbuild.yaml \
-            --substitutions=_IMAGE_TAG="${IMAGE_TAG}",_VITE_API_URL="http://api-dev.mediflow.example.com"
+          docker build \
+            --build-arg VITE_API_URL="http://api-dev.mediflow.example.com" \
+            -t "${FRONTEND_IMAGE}:${IMAGE_TAG}" \
+            ./frontend
+
+      - name: Push frontend image
+        shell: bash
+        run: |
+          docker push "${FRONTEND_IMAGE}:${IMAGE_TAG}"
 
       - name: Get GKE credentials
         uses: google-github-actions/get-gke-credentials@v3
