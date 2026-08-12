@@ -27,10 +27,6 @@ spec:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/backend/configmap.yaml") . | sha256sum }}
 
-        {{- if not .Values.secret.existingSecret }}
-        checksum/secret: {{ include (print $.Template.BasePath "/common/secret.yaml") . | sha256sum }}
-        {{- end }}
-
     spec:
       {{- with .Values.serviceAccount }}
       {{- if .name }}
@@ -41,9 +37,20 @@ spec:
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
 
+      initContainers:
+        - name: cloud-sql-proxy
+          restartPolicy: Always
+          image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.14.1
+          args:
+            - "--structured-logs"
+            - "--port=5432"
+            - "mediflow-ai-enterprise:asia-south1:mediflow-dev-postgres"
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+
       containers:
         - name: backend
-
           image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
           imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
 
@@ -59,28 +66,13 @@ spec:
             - configMapRef:
                 name: {{ include "mediflow-app.configMapName" . }}
 
-          # Keep using the existing Kubernetes Secret for now.
-          # Secret Manager is mounted below only for validation.
           env:
-            - name: JWT_SECRET
+            - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "mediflow-app.secretName" . }}
-                  key: jwtSecret
+                  name: mediflow-cloudsql-db
+                  key: DATABASE_URL
 
-            - name: MINIO_ACCESS_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "mediflow-app.secretName" . }}
-                  key: minioAccessKey
-
-            - name: MINIO_SECRET_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "mediflow-app.secretName" . }}
-                  key: minioSecretKey
-
-          # Google Secret Manager CSI mount
           volumeMounts:
             - name: mediflow-secrets
               mountPath: /mnt/secrets-store
@@ -95,7 +87,6 @@ spec:
           livenessProbe:
             {{- toYaml .Values.backend.livenessProbe | nindent 12 }}
 
-      # Google Secret Manager CSI volume
       volumes:
         - name: mediflow-secrets
           csi:

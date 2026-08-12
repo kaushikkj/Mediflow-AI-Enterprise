@@ -32,7 +32,6 @@ type CreatedDoctor = {
   user_id: number;
   email: string;
   full_name: string;
-  doctor_code: string;
   department_id: number;
   department: string;
   qualification: string;
@@ -46,7 +45,6 @@ type DoctorForm = {
   email: string;
   password: string;
   department_id: string;
-  doctor_code: string;
   qualification: string;
   experience_years: string;
   consultation_fee: string;
@@ -57,7 +55,6 @@ const emptyDoctorForm: DoctorForm = {
   email: "",
   password: "Doctor123!",
   department_id: "",
-  doctor_code: "",
   qualification: "",
   experience_years: "",
   consultation_fee: "",
@@ -145,7 +142,6 @@ export default function AdminUsers() {
           email: doctorForm.email,
           password: doctorForm.password,
           department_id: Number(doctorForm.department_id),
-          doctor_code: doctorForm.doctor_code,
           qualification: doctorForm.qualification,
           experience_years: Number(doctorForm.experience_years),
           consultation_fee: Number(doctorForm.consultation_fee),
@@ -323,18 +319,6 @@ export default function AdminUsers() {
             </label>
 
             <label>
-              Doctor code
-              <input
-                required
-                placeholder="DR-1004"
-                value={doctorForm.doctor_code}
-                onChange={(event) =>
-                  updateDoctorField("doctor_code", event.target.value)
-                }
-              />
-            </label>
-
-            <label>
               Qualification
               <input
                 required
@@ -446,3 +430,5 @@ export default function AdminUsers() {
     </section>
   );
 }
+
+

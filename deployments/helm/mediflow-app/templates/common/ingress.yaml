@@ -5,14 +5,17 @@ metadata:
   name: {{ include "mediflow-app.fullname" . }}
   labels:
     {{- include "mediflow-app.labels" . | nindent 4 }}
-  {{- with .Values.ingress.annotations }}
   annotations:
+    kubernetes.io/ingress.class: gce
+    {{- with .Values.ingress.annotations }}
     {{- toYaml . | nindent 4 }}
-  {{- end }}
+    {{- end }}
 spec:
-  {{- with .Values.ingress.className }}
-  ingressClassName: {{ . }}
-  {{- end }}
+  defaultBackend:
+    service:
+      name: {{ include "mediflow-app.frontendName" . }}
+      port:
+        name: http
   {{- if .Values.ingress.tls }}
   tls:
     {{- toYaml .Values.ingress.tls | nindent 4 }}

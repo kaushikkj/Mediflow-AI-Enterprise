@@ -164,10 +164,6 @@ class DoctorCreate(BaseModel):
     department_id: int = Field(
         gt=0,
     )
-    doctor_code: str = Field(
-        min_length=3,
-        max_length=30,
-    )
     qualification: str = Field(
         min_length=2,
         max_length=150,
@@ -183,7 +179,6 @@ class DoctorCreate(BaseModel):
 
     @field_validator(
         "full_name",
-        "doctor_code",
         "qualification",
     )
     @classmethod

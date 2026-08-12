@@ -83,6 +83,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
+        "http://dev.mediflow.example.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -1572,20 +1573,6 @@ def create_doctor(
             status_code=409,
             detail="Email already registered",
         )
-
-    existing_code = db.scalar(
-        select(Doctor).where(
-            func.lower(Doctor.doctor_code)
-            == payload.doctor_code.lower()
-        )
-    )
-
-    if existing_code:
-        raise HTTPException(
-            status_code=409,
-            detail="Doctor code already exists",
-        )
-
     department = db.get(
         Department,
         payload.department_id,
@@ -1610,12 +1597,19 @@ def create_doctor(
     db.add(account)
     db.flush()
 
+    last_doctor = db.scalar(
+        select(Doctor)
+        .order_by(Doctor.id.desc())
+        .limit(1)
+    )
+
+    next_number = 1001 if not last_doctor else last_doctor.id + 1000
+    doctor_code = f"DR-{next_number}"
+
     doctor = Doctor(
         user_id=account.id,
         department_id=department.id,
-        doctor_code=(
-            payload.doctor_code.upper()
-        ),
+        doctor_code=doctor_code,
         qualification=(
             payload.qualification
         ),
@@ -1842,3 +1836,4 @@ def update_user_status(
             "active": account.active,
         },
     }
+
