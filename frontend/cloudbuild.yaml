@@ -5,11 +5,12 @@ steps:
       - --build-arg
       - VITE_API_URL=${_VITE_API_URL}
       - -t
-      - asia-south1-docker.pkg.dev/mediflow-ai-enterprise/mediflow/frontend:v5
+      - asia-south1-docker.pkg.dev/mediflow-ai-enterprise/mediflow/frontend:${_IMAGE_TAG}
       - .
 
 images:
-  - asia-south1-docker.pkg.dev/mediflow-ai-enterprise/mediflow/frontend:v5
+  - asia-south1-docker.pkg.dev/mediflow-ai-enterprise/mediflow/frontend:${_IMAGE_TAG}
 
 substitutions:
+  _IMAGE_TAG: latest
   _VITE_API_URL: http://api-dev.mediflow.example.com

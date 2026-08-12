@@ -1,0 +1,119 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+    branches:
+      - main
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: mediflow-dev-deploy
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: mediflow-ai-enterprise
+  REGION: asia-south1
+  CLUSTER_NAME: mediflow-gke
+  NAMESPACE: mediflow-dev
+  RELEASE_NAME: mediflow
+  BACKEND_IMAGE: asia-south1-docker.pkg.dev/mediflow-ai-enterprise/mediflow/backend
+  FRONTEND_IMAGE: asia-south1-docker.pkg.dev/mediflow-ai-enterprise/mediflow/frontend
+
+jobs:
+  deploy:
+    name: Build and Deploy to GKE
+
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Determine deployment SHA
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            echo "IMAGE_TAG=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_ENV"
+            echo "DEPLOY_SHA=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_ENV"
+          else
+            echo "IMAGE_TAG=${{ github.sha }}" >> "$GITHUB_ENV"
+            echo "DEPLOY_SHA=${{ github.sha }}" >> "$GITHUB_ENV"
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: mediflow-ai-enterprise
+          workload_identity_provider: projects/60743144906/locations/global/workloadIdentityPools/github/providers/mediflow-github
+          service_account: mediflow-github-deployer@mediflow-ai-enterprise.iam.gserviceaccount.com
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Build backend image
+        run: |
+          gcloud builds submit ./backend \
+            --project="${PROJECT_ID}" \
+            --config=./backend/cloudbuild.yaml \
+            --substitutions=_IMAGE_TAG="${IMAGE_TAG}"
+
+      - name: Build frontend image
+        run: |
+          gcloud builds submit ./frontend \
+            --project="${PROJECT_ID}" \
+            --config=./frontend/cloudbuild.yaml \
+            --substitutions=_IMAGE_TAG="${IMAGE_TAG}",_VITE_API_URL="http://api-dev.mediflow.example.com"
+
+      - name: Get GKE credentials
+        uses: google-github-actions/get-gke-credentials@v3
+        with:
+          cluster_name: mediflow-gke
+          location: asia-south1
+          project_id: mediflow-ai-enterprise
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v4.2.3
+
+      - name: Deploy with Helm
+        run: |
+          helm upgrade "${RELEASE_NAME}" ./deployments/helm/mediflow-app \
+            --namespace "${NAMESPACE}" \
+            -f ./deployments/helm/mediflow-app/values-gke-dev.yaml \
+            --set backend.image.repository="${BACKEND_IMAGE}" \
+            --set backend.image.tag="${IMAGE_TAG}" \
+            --set frontend.image.repository="${FRONTEND_IMAGE}" \
+            --set frontend.image.tag="${IMAGE_TAG}" \
+            --force-conflicts
+
+      - name: Verify backend rollout
+        run: |
+          kubectl rollout status deployment/mediflow-mediflow-app-backend \
+            -n "${NAMESPACE}" \
+            --timeout=300s
+
+      - name: Verify frontend rollout
+        run: |
+          kubectl rollout status deployment/mediflow-mediflow-app-frontend \
+            -n "${NAMESPACE}" \
+            --timeout=300s
+
+      - name: Show deployed pods
+        run: kubectl get pods -n "${NAMESPACE}" -o wide
