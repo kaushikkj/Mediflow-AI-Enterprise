@@ -25,6 +25,7 @@ env:
   CLUSTER_NAME: mediflow-gke
   NAMESPACE: mediflow-dev
   RELEASE_NAME: mediflow
+
   BACKEND_IMAGE: asia-south1-docker.pkg.dev/mediflow-ai-enterprise/mediflow/backend
   FRONTEND_IMAGE: asia-south1-docker.pkg.dev/mediflow-ai-enterprise/mediflow/frontend
 
@@ -66,7 +67,31 @@ jobs:
       - name: Set up Google Cloud SDK
         uses: google-github-actions/setup-gcloud@v3
 
+      - name: Debug GCP identity
+        shell: bash
+        run: |
+          echo "===== ACTIVE GCLOUD ACCOUNT ====="
+          gcloud auth list
+
+          echo
+          echo "===== GCLOUD CONFIG ====="
+          gcloud config list
+
+          echo
+          echo "===== DEPLOYER IAM ROLES ====="
+          gcloud projects get-iam-policy "${PROJECT_ID}" \
+            --flatten="bindings[].members" \
+            --filter="bindings.members:mediflow-github-deployer@mediflow-ai-enterprise.iam.gserviceaccount.com" \
+            --format="table(bindings.role)"
+
+          echo
+          echo "===== CLOUD BUILD BUCKET ====="
+          gcloud storage buckets describe \
+            gs://mediflow-ai-enterprise_cloudbuild \
+            --format="value(name)"
+
       - name: Build backend image
+        shell: bash
         run: |
           gcloud builds submit ./backend \
             --project="${PROJECT_ID}" \
@@ -74,6 +99,7 @@ jobs:
             --substitutions=_IMAGE_TAG="${IMAGE_TAG}"
 
       - name: Build frontend image
+        shell: bash
         run: |
           gcloud builds submit ./frontend \
             --project="${PROJECT_ID}" \
@@ -93,6 +119,7 @@ jobs:
           version: v4.2.3
 
       - name: Deploy with Helm
+        shell: bash
         run: |
           helm upgrade "${RELEASE_NAME}" ./deployments/helm/mediflow-app \
             --namespace "${NAMESPACE}" \
@@ -104,16 +131,24 @@ jobs:
             --force-conflicts
 
       - name: Verify backend rollout
+        shell: bash
         run: |
-          kubectl rollout status deployment/mediflow-mediflow-app-backend \
+          kubectl rollout status \
+            deployment/mediflow-mediflow-app-backend \
             -n "${NAMESPACE}" \
             --timeout=300s
 
       - name: Verify frontend rollout
+        shell: bash
         run: |
-          kubectl rollout status deployment/mediflow-mediflow-app-frontend \
+          kubectl rollout status \
+            deployment/mediflow-mediflow-app-frontend \
             -n "${NAMESPACE}" \
             --timeout=300s
 
       - name: Show deployed pods
-        run: kubectl get pods -n "${NAMESPACE}" -o wide
+        shell: bash
+        run: |
+          kubectl get pods \
+            -n "${NAMESPACE}" \
+            -o wide
