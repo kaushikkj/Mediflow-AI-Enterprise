@@ -67,28 +67,25 @@ jobs:
       - name: Set up Google Cloud SDK
         uses: google-github-actions/setup-gcloud@v3
 
-      - name: Debug GCP identity
+      - name: Debug GCP access
         shell: bash
         run: |
-          echo "===== ACTIVE GCLOUD ACCOUNT ====="
-          gcloud auth list
+          echo "===== ACTIVE ACCOUNT ====="
+          gcloud auth list --filter=status:ACTIVE --format="value(account)"
 
           echo
-          echo "===== GCLOUD CONFIG ====="
-          gcloud config list
+          echo "===== PROJECT ====="
+          gcloud config get-value project
 
           echo
-          echo "===== DEPLOYER IAM ROLES ====="
-          gcloud projects get-iam-policy "${PROJECT_ID}" \
-            --flatten="bindings[].members" \
-            --filter="bindings.members:mediflow-github-deployer@mediflow-ai-enterprise.iam.gserviceaccount.com" \
-            --format="table(bindings.role)"
-
-          echo
-          echo "===== CLOUD BUILD BUCKET ====="
+          echo "===== BUCKET DESCRIBE ====="
           gcloud storage buckets describe \
-            gs://mediflow-ai-enterprise_cloudbuild \
-            --format="value(name)"
+            gs://mediflow-ai-enterprise_cloudbuild
+
+          echo
+          echo "===== BUCKET LIST TEST ====="
+          gcloud storage ls \
+            gs://mediflow-ai-enterprise_cloudbuild
 
       - name: Build backend image
         shell: bash
