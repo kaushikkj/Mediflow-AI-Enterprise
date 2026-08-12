@@ -5,7 +5,7 @@ global:
 backend:
   image:
     repository: asia-south1-docker.pkg.dev/mediflow-ai-enterprise/mediflow/backend
-    tag: v1
+    tag: v4
     pullPolicy: IfNotPresent
   autoscaling:
     enabled: false
@@ -13,14 +13,16 @@ backend:
 frontend:
   image:
     repository: asia-south1-docker.pkg.dev/mediflow-ai-enterprise/mediflow/frontend
-    tag: v3
+    tag: v5
     pullPolicy: IfNotPresent
   autoscaling:
     enabled: false
 
 ingress:
-  enabled: false
+  enabled: true
   className: gce
+  annotations:
+    kubernetes.io/ingress.global-static-ip-name: mediflow-dev-ip
   frontendHost: dev.mediflow.example.com
   apiHost: api-dev.mediflow.example.com
 
@@ -44,4 +46,6 @@ serviceAccount:
   name: mediflow-backend
   annotations:
     iam.gke.io/gcp-service-account: mediflow-app-dev@mediflow-ai-enterprise.iam.gserviceaccount.com
+
+
 

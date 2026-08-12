@@ -1,7 +1,18 @@
-from pydantic_settings import (
-    BaseSettings,
-    SettingsConfigDict,
-)
+from pathlib import Path
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def read_secret(path: str, fallback: str) -> str:
+    secret_file = Path(path)
+
+    if secret_file.exists():
+        value = secret_file.read_text(encoding="utf-8").strip()
+
+        if value:
+            return value
+
+    return fallback
 
 
 class Settings(BaseSettings):
@@ -11,9 +22,7 @@ class Settings(BaseSettings):
         "postgres:5432/mediflow"
     )
 
-    jwt_secret: str = (
-        "change-this-local-secret"
-    )
+    jwt_secret: str = "change-this-local-secret"
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 480
     jwt_issuer: str = "mediflow-api"
@@ -21,16 +30,10 @@ class Settings(BaseSettings):
 
     minio_endpoint: str = "minio:9000"
     minio_access_key: str = "mediflow"
-    minio_secret_key: str = (
-        "mediflow123"
-    )
-    minio_bucket: str = (
-        "medical-documents"
-    )
+    minio_secret_key: str = "mediflow123"
+    minio_bucket: str = "medical-documents"
 
-    redis_url: str = (
-        "redis://redis:6379/0"
-    )
+    redis_url: str = "redis://redis:6379/0"
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -40,3 +43,18 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+settings.jwt_secret = read_secret(
+    "/mnt/secrets-store/jwt-secret",
+    settings.jwt_secret,
+)
+
+settings.minio_access_key = read_secret(
+    "/mnt/secrets-store/minio-access-key",
+    settings.minio_access_key,
+)
+
+settings.minio_secret_key = read_secret(
+    "/mnt/secrets-store/minio-secret-key",
+    settings.minio_secret_key,
+)
