@@ -130,7 +130,7 @@ export default function Operations() {
           <strong>{dashboard.label}</strong>
           <p>{dashboard.description}</p>
         </div>
-        <div className="live-chip"><span /> Auto-refresh 10s</div>
+        {/* <div className="live-chip"><span /> Auto-refresh 10s</div> */}
       </div>
 
       <div className="grafana-frame premium-frame">
