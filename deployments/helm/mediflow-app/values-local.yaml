@@ -1,11 +1,15 @@
 global:
   environment: local
 
+gke:
+  enabled: false
+
 ingress:
   enabled: true
   className: nginx
   frontendHost: mediflow.local
   apiHost: api.mediflow.local
+  grafanaHost: grafana.mediflow.local
 
 backend:
   image:

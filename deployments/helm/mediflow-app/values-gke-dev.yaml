@@ -1,6 +1,9 @@
 global:
   environment: gke-dev
 
+gke:
+  enabled: true
+
 # Override these repositories and tags at deployment time.
 backend:
   image:
