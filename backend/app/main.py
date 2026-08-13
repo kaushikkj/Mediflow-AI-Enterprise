@@ -83,6 +83,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
+        "http://localhost:5173",
         "http://dev.mediflow.example.com",
     ],
     allow_credentials=True,
