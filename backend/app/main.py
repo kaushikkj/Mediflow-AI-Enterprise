@@ -16,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
-
+from .observability import router as observability_router
 from .config import settings
 from .db import get_db
 from .logging_config import configure_logging
@@ -72,6 +72,9 @@ app = FastAPI(
     title="MediFlow One API",
     version="2.0.0",
 )
+
+# Register admin observability routes.
+app.include_router(observability_router)
 
 # FastAPI -> OpenTelemetry -> Alloy -> Tempo
 setup_tracing(app)
@@ -1837,4 +1840,3 @@ def update_user_status(
             "active": account.active,
         },
     }
-
