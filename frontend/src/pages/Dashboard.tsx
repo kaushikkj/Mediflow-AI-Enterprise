@@ -48,7 +48,12 @@ export default function Dashboard() {
     return "Good evening";
   }, []);
 
-  const firstName = user?.full_name?.split(" ")[0] ?? "there";
+  const displayName =
+  user?.role === "doctor"
+    ? user.full_name?.startsWith("Dr.")
+      ? user.full_name
+      : `Dr. ${user.full_name}`
+    : user?.full_name?.split(" ")[0] ?? "there";
 
   return (
     <section className="page-stack">
@@ -60,7 +65,7 @@ export default function Dashboard() {
           <h1>
             {user?.role === "admin"
               ? "Hospital command center"
-              : `${greeting}, ${firstName}`}
+              : `${greeting}, ${displayName}`}
           </h1>
           <p>
             {user?.role === "admin"
