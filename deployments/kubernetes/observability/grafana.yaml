@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: mediflow-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+        - name: grafana
+          image: grafana/grafana:11.6.0
+
+          ports:
+            - containerPort: 3000
+              name: http
+
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              value: admin
+
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              value: admin123
+
+            - name: GF_USERS_ALLOW_SIGN_UP
+              value: "false"
+
+            # Allow Grafana dashboards to be displayed inside MediFlow iframe
+            - name: GF_SECURITY_ALLOW_EMBEDDING
+              value: "true"
+
+            # Allow dashboard viewing without a separate Grafana login
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: "true"
+
+            # Anonymous users are read-only
+            - name: GF_AUTH_ANONYMOUS_ORG_ROLE
+              value: Viewer
+
+          volumeMounts:
+            - name: datasource
+              mountPath: /etc/grafana/provisioning/datasources
+
+            - name: dashboard-provider
+              mountPath: /etc/grafana/provisioning/dashboards
+
+            - name: dashboards
+              mountPath: /var/lib/grafana/dashboards
+
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+
+      volumes:
+        - name: datasource
+          configMap:
+            name: grafana-datasource
+
+        - name: dashboard-provider
+          configMap:
+            name: grafana-dashboard-provider
+
+        - name: dashboards
+          configMap:
+            name: grafana-dashboards
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: mediflow-dev
+  annotations:
+    cloud.google.com/backend-config: '{"default":"grafana-backend-config"}'
+spec:
+  selector:
+    app: grafana
+
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+
+  type: ClusterIP

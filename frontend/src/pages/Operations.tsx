@@ -67,7 +67,7 @@ export default function Operations() {
       kiosk: "",
     });
 
-    return `http://localhost:3001` + dashboard.path + `?${params.toString()}`;
+    return `http://grafana-dev.mediflow.example.com` + dashboard.path + `?${params.toString()}`;
   }, [dashboard]);
 
   return (
@@ -111,3 +111,4 @@ export default function Operations() {
     </section>
   );
 }
+

@@ -16,10 +16,12 @@ spec:
       name: {{ include "mediflow-app.frontendName" . }}
       port:
         name: http
+
   {{- if .Values.ingress.tls }}
   tls:
     {{- toYaml .Values.ingress.tls | nindent 4 }}
   {{- end }}
+
   rules:
     - host: {{ required "ingress.frontendHost is required when ingress is enabled" .Values.ingress.frontendHost | quote }}
       http:
@@ -31,6 +33,7 @@ spec:
                 name: {{ include "mediflow-app.frontendName" . }}
                 port:
                   name: http
+
     - host: {{ required "ingress.apiHost is required when ingress is enabled" .Values.ingress.apiHost | quote }}
       http:
         paths:
@@ -41,4 +44,15 @@ spec:
                 name: {{ include "mediflow-app.backendName" . }}
                 port:
                   name: http
+
+    - host: {{ required "ingress.grafanaHost is required when ingress is enabled" .Values.ingress.grafanaHost | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana
+                port:
+                  number: 3000
 {{- end }}

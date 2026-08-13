@@ -25,6 +25,7 @@ ingress:
     kubernetes.io/ingress.global-static-ip-name: mediflow-dev-ip
   frontendHost: dev.mediflow.example.com
   apiHost: api-dev.mediflow.example.com
+  grafanaHost: grafana-dev.mediflow.example.com
 
 # Replace these with Cloud SQL, Memorystore, MinIO/GCS-compatible endpoints,
 # or services running in the same Kubernetes namespace.
@@ -46,6 +47,8 @@ serviceAccount:
   name: mediflow-backend
   annotations:
     iam.gke.io/gcp-service-account: mediflow-app-dev@mediflow-ai-enterprise.iam.gserviceaccount.com
+
+
 
 
 
